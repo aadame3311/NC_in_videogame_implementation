@@ -35,8 +35,6 @@
         var id = 0;
 
         var name = $(".player").length-1;
-        console.log($(".player").length);
-
         // generate random color for new player.
         var random_r = Math.floor((Math.random() * 255)+50);
         var random_g = Math.floor((Math.random() * 255)+50);
@@ -58,6 +56,7 @@
             })
 
         });
+        console.log("out: "+name)
         socket.on("CONN", function(data) {
             Instantiate(data, false);
         });
@@ -65,10 +64,10 @@
         socket.on("MOVE", function(data) {
             $("#"+data['name']).css({"left":data['left'], "top":data['top']})
         });
+
         socket.on("COLLISION", function(data) {
             var color = $("#"+data[1]).css("background-color");
             // send new color. 
-            console.log($("#"+data[1]).css("background-color"));
             socket.emit("NEW_COLOR", {
                 'name': data[0],
                 'color':$("#"+data[1]).css("background-color")
@@ -78,7 +77,6 @@
             $("#"+data['name']).css("background-color", data['color']);
         });
         
-        //console.log("THIS CLIENT IS: " + name);
         // main update function. 
         function MainLoop() {
             velx = 0;
@@ -94,16 +92,21 @@
             posy += vely * SPEED * frameTime;
 
             // send server movement data. 
-            socket.emit("MOVE", {
-                "name": name,
-                "left": posx, 
-                "top": posy
-            }); 
-            socket.emit("COLLISION", {
-                'name': name,
-                'left':posx,
-                'top':posy
-            })
+            setTimeout(function() {
+                socket.emit("MOVE", {
+                    "name": name,
+                    "left": posx, 
+                    "top": posy
+                }); 
+            }, 100) 
+            setTimeout(function() {
+                socket.emit("COLLISION", {
+                    'name': name,
+                    'left':posx,
+                    'top':posy
+                })
+            }, 100);
+
         }
         setInterval(MainLoop, frameTime);
 
