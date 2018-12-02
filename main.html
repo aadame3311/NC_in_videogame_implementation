@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body style="background-color: black">
+    <div class="body">
+
+    </div>
+    <div id="template" class="player" style="display:none; position: absolute; width: 50px; height: 50px; border-radius: 50%; background-color: red;">
+        <div style='text-align: center;'>Name</div>
+    </div>
+    
+    
+    
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // GLOBALS.
+        var keys = [false,false,false,false]
+
+        var START_LEFT = Math.floor(Math.random()*$(window).width());
+        var START_TOP = Math.floor(Math.random()*$(window).height());
+
+        var frameTime = 1000/30;
+        
+        var posx = START_LEFT, posy = START_TOP;
+
+        var SPEED = 0.2;
+
+        var socket = io();
+        var id = 0;
+
+        var name = $(".player").length-1;
+        console.log($(".player").length);
+
+        // generate random color for new player.
+        var random_r = Math.floor((Math.random() * 255)+50);
+        var random_g = Math.floor((Math.random() * 255)+50);
+        var random_b = Math.floor((Math.random() * 255)+50);
+        var player_color = "rgb("+random_r+","+random_g+","+random_b+")";
+
+        socket.emit("CONN", {
+            "name": name,
+            "color": player_color,
+            "top": START_TOP,
+            "left": START_LEFT
+        });
+        socket.on("SET_NAME", function(data) {
+            name = data['name'];
+        });
+        socket.on("RESPONSE", function(data) {
+            $.each(data, function(i,v) {
+                Instantiate(v, false);
+            })
+
+        });
+        socket.on("CONN", function(data) {
+            Instantiate(data, false);
+        });
+
+        socket.on("MOVE", function(data) {
+            $("#"+data['name']).css({"left":data['left'], "top":data['top']})
+        });
+        socket.on("COLLISION", function(data) {
+            var color = $("#"+data[1]).css("background-color");
+            // send new color. 
+            console.log($("#"+data[1]).css("background-color"));
+            socket.emit("NEW_COLOR", {
+                'name': data[0],
+                'color':$("#"+data[1]).css("background-color")
+            });
+        });
+        socket.on("NEW_COLOR", function(data) {
+            $("#"+data['name']).css("background-color", data['color']);
+        });
+        
+        //console.log("THIS CLIENT IS: " + name);
+        // main update function. 
+        function MainLoop() {
+            velx = 0;
+            if (keys[0]) velx -=1;
+            if (keys[1]) velx +=1;
+
+            vely = 0;
+            if (keys[2]) vely -=1;
+            if (keys[3]) vely +=1;
+
+            // update position based on the speed, direction; frame dependent.
+            posx += velx * SPEED * frameTime;
+            posy += vely * SPEED * frameTime;
+
+            // send server movement data. 
+            socket.emit("MOVE", {
+                "name": name,
+                "left": posx, 
+                "top": posy
+            }); 
+            socket.emit("COLLISION", {
+                'name': name,
+                'left':posx,
+                'top':posy
+            })
+        }
+        setInterval(MainLoop, frameTime);
+
+        $(document).keydown(function(e) {
+            if ($(document.activeElement).attr('id') != "input" && $(document.activeElement).attr('id') != "name") {
+                if (e.keyCode == 65) keys[0] = true
+                if (e.keyCode == 68) keys[1] = true
+                if (e.keyCode == 87) keys[2] = true
+                if (e.keyCode == 83) keys[3] = true
+            }
+
+        });
+
+        $(document).keyup(function(e) {
+            if ($(document.activeElement).attr('id') != "input" && $(document.activeElement).attr('id') != "name") {
+                if (e.keyCode == 65) keys[0] = false
+                if (e.keyCode == 68) keys[1] = false
+                if (e.keyCode == 87) keys[2] = false
+                if (e.keyCode == 83) keys[3] = false
+            }
+        })
+
+
+        // set player values.
+        function Instantiate(player, self) {
+            //console.log("hello, im: "+player['name'])
+            sp = $("#template").clone();
+            console.log(player['color'])
+            sp.css("background-color", player['color']);
+            sp.attr("id", player['name']);
+            sp.find("div").text(player['name']);
+
+            if (self) {
+                sp.addClass("player-self");
+            }
+            
+            // set position. 
+            sp.css("top", player['top']);
+            sp.css("left", player['left']);
+            $(".body").append(sp);
+            sp.show();
+        }
+    </script>
+</body>
+</html>
